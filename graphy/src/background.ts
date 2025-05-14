@@ -1,6 +1,6 @@
 import { map, Try } from "@custom-express/better-standard-library"
 import { Log } from "~./custom-log"
-import type { BrowserHistory, ITab, TabGraph } from "~storageRepo"
+import type { BrowserHistory, ITab, TabGraph } from "~./internal/entities/tabs/exports"
 
 
 class CurrentOpenedTab {
