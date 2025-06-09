@@ -8,6 +8,7 @@
     "./**/*.ts",
     "./**/*.tsx"
   ],
+"types": ["firefox-webext-browser"],
   "compilerOptions": {
     "lib": ["ESNext", "DOM"],
     "paths": {

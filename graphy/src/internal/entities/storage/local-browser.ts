@@ -1,5 +1,5 @@
 import type { IStorage, StorageOptions } from './interface';
-import { Optionable } from '@custom-express/better-standard-library';
+import { Optionable } from '@blazyts/better-standard-library';
 
 export class LocalBrowserStorage implements IStorage {
     private readonly prefix: string;

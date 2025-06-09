@@ -1,121 +1,109 @@
-import { map, Try } from "@custom-express/better-standard-library"
-import { Log } from "~./custom-log"
-import type { BrowserHistory, ITab, TabGraph } from "~./internal/entities/tabs/exports"
+import { TabService } from "./application/services/TabService";
+import { BrowserTabRepository } from "./infrastructure/storage/BrowserTabRepository";
 
+const tabRepository = new BrowserTabRepository();
+const tabService = new TabService(tabRepository);
 
-class CurrentOpenedTab {
-  set current(id: number) {
-    browser.storage.local.set({ currentTabId: id })
-  }
+// Repository will be initialized on first use
 
-  async getCurrent(): Promise<number> {
-    return await browser.storage.local.get("currentTabId")
-  }
-}
-
-const currentTab = new CurrentOpenedTab()
-
-const  g: BrowserHistory = null
-
-const h: TabGraph = null
-
-const logCurrentTab = async () => {
+// Track tab activation
+browser.tabs.onActivated.addListener(async (activeInfo: browser.tabs._OnActivatedActiveInfo) => {
   try {
-    const [tab] = await browser.tabs.query({
-      active: true,
-      currentWindow: true
-    })
-    if (tab && tab.url) {
-      console.log(`Current tab URL: ${tab.url}`)
-      await browser.storage.local.set({ lastVisitedUrl: tab.url })
+    const tab = await browser.tabs.get(activeInfo.tabId);
+    if (tab.id && tab.windowId) {
+      await tabService.trackTab({
+        id: tab.id,
+        windowId: tab.windowId,
+        url: tab.url,
+        title: tab.title,
+        favIconUrl: tab.favIconUrl,
+        status: tab.status,
+        active: tab.active,
+        pinned: tab.pinned,
+        highlighted: tab.highlighted,
+        incognito: tab.incognito,
+        width: tab.width,
+        height: tab.height,
+        sessionId: (tab as any).sessionId,
+      }, tab.windowId);
     }
   } catch (error) {
-    console.error("Error getting current tab:", error)
+    console.error('Error tracking tab activation:', error);
   }
-}
+});
 
-function setupRuntimeListeners() {
-  browser.runtime.onInstalled.addListener(async (details) => {
-    console.log("Extension installed/updated:" + details.reason)
-    await logCurrentTab()
-  })
-
-  browser.runtime.onStartup.addListener(async () => {
-    console.log("Browser started")
-    await logCurrentTab()
-  })
-}
-
-function setUpTabListeners() {
-
-  browser.tabs.onCreated.addListener(async (tab) => {
-
-    console.log(`New tab created: ${tab.id}`)
-
-    console.log(`Initial new tab URL: ${tab.url || "unknown"}`)
-    map(
-      h.windows.find(v => v.id === tab.id),
-      currentWindow =>
-        map(
-          currentWindow.tabs.find(v => v.info.id === tab.openerTabId),
-          currentTab => Try(
-            currentTab,
-            {
-              ifNone: () => currentWindow.tabs.push(tab),
-              ifNotNone: v => currentTab.addRelation(tab, "child"),
-            }
-          )
-        )  
-    )
-  })
-
-  chrome.tabs.onActivated.addListener(activeInfo => {
-    currentTab.current = activeInfo.tabId
-  })
-
-  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    g.addChange({
-      tab: tab.id,
-      window: tab.windowId,
-      payload: JSON.stringify(changeInfo) 
-    })
-
-    map(
-      h.windows.find(w => w.id === tab.windowId),
-      currentWindow =>
-        map(
-          currentWindow.tabs.find(t => t.info.id === tabId),
-          currentTab => currentTab.history.push(JSON.stringify(changeInfo))
-        )
-    )
-
-
-  });
-
-  browser.tabs.onRemoved.addListener((tabId, removeInfo) => {
-    if (removeInfo.isWindowClosing) {
-      h.windows = h.windows.filter(window => window.id !== removeInfo.windowId);
-      return
+// Track tab updates
+browser.tabs.onUpdated.addListener(async (
+  tabId: number,
+  changeInfo: browser.tabs._OnUpdatedChangeInfo,
+  tab: browser.tabs.Tab
+) => {
+  if (changeInfo.status === 'complete' && tab.active && tab.id && tab.windowId) {
+    try {
+      await tabService.trackTab({
+        id: tab.id,
+        windowId: tab.windowId,
+        url: tab.url,
+        title: tab.title,
+        favIconUrl: tab.favIconUrl,
+        status: tab.status,
+        active: tab.active,
+        pinned: tab.pinned,
+        highlighted: tab.highlighted,
+        incognito: tab.incognito,
+        width: tab.width,
+        height: tab.height,
+        sessionId: (tab as any).sessionId,
+      }, tab.windowId);
+    } catch (error) {
+      console.error('Error tracking tab update:', error);
     }
-    map(
-      h.windows.find(w => removeInfo.windowId === w.id),
-      currentWindow => currentWindow.removeTab(tabId)
-    )
-  })
+  }
+});
 
-}
+// Track tab removal
+browser.tabs.onRemoved.addListener(async (tabId: number, removeInfo: browser.tabs._OnRemovedRemoveInfo) => {
+  try {
+    await tabService.removeTab(tabId);
+  } catch (error) {
+    console.error('Error removing tab:', error);
+  }
+});
 
-function setUpAlarms() {
+// Handle extension installation/update
+browser.runtime.onInstalled.addListener(() => {
+  console.log('Graphy extension installed/updated');
+});
 
-  browser.alarms.create("keepServiceWorkerAlive", { periodInMinutes: 1 })
-  browser.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === "keepServiceWorkerAlive") {
-      console.log("Background service worker ping")
+// Initialize the extension on startup
+browser.runtime.onStartup.addListener(async () => {
+  console.log('Extension starting up...');
+  
+  try {
+    // Load existing tabs
+    const tabs = await browser.tabs.query({});
+    for (const tab of tabs) {
+      if (tab.active && tab.id && tab.windowId) {
+        await tabService.trackTab({
+          id: tab.id,
+          windowId: tab.windowId,
+          url: tab.url,
+          title: tab.title,
+          favIconUrl: tab.favIconUrl,
+          status: tab.status,
+          active: tab.active,
+          pinned: tab.pinned,
+          highlighted: tab.highlighted,
+          incognito: tab.incognito,
+          width: tab.width,
+          height: tab.height,
+          sessionId: (tab as any).sessionId,
+        }, tab.windowId);
+      }
     }
-  })
-}
-
-
-setupRuntimeListeners();
-setUpTabListeners();
-setUpAlarms();
+    
+    console.log('Extension initialized');
+  } catch (error) {
+    console.error('Error initializing extension:', error);
+  }
+});

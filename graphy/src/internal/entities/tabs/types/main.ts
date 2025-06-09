@@ -1,4 +1,4 @@
-import type { VCallback } from "@custom-express/better-standard-library"
+import type { VCallback } from "@blazyts/better-standard-library"
 import {undefined} from "zod";
 
 export type TabInfo = { id: browser.tabs.Tab["id"]}

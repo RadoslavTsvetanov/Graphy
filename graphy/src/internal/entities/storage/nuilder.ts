@@ -1,4 +1,4 @@
-import type { Optionable } from "@custom-express/better-standard-library";
+import type { Optionable } from "@blazyts/better-standard-library";
 import type { IStorage } from "./interface";
 import LocalBrowserStorage from "./local-browser";
 import type { ITab } from "../tabs/exports";

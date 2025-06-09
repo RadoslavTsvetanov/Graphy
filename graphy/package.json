@@ -8,7 +8,7 @@
     "dev": "plasmo dev",
     "build": "plasmo build",
     "package": "plasmo package",
-    "build-firefox": "cross-env PARCEL_WORKER_BACKEND=process plasmo build --target=firefox" 
+    "build-firefox": "cross-env PARCEL_WORKER_BACKEND=process plasmo build --target=firefox"
   },
   "dependencies": {
     "@types/firefox-webext-browser": "^120.0.4",

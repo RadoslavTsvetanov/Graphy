@@ -1,4 +1,4 @@
-import type { Optionable } from "@custom-express/better-standard-library";
+import type { Optionable } from "@blazyts/better-standard-library";
 
 export interface IStorage {
     /**
